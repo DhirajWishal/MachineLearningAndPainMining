@@ -21,7 +21,7 @@ load_data$Dates <- as.Date(load_data$Dates)
 names(load_data)[names(load_data) == "09:00"] <- "Nine"
 names(load_data)[names(load_data) == "10:00"] <- "Ten"
 names(load_data)[names(load_data) == "11:00"] <- "Eleven"
-load_data
+summary(load_data)
 
 # Also make sure to set the seed!
 set.seed(123)
@@ -29,7 +29,6 @@ set.seed(123)
 # Get all the class information from the data set.
 sapply(load_data, class)
 summary(load_data)
-as.numeric(as.POSIXct(load_data$Dates))
 
 # New data frame so that we don't have to worry about the date-time format.
 homogeneous_data <- load_data
@@ -43,37 +42,37 @@ normalized = as.data.frame(sapply(homogeneous_data, function(x)
 summary(normalized)
 
 # Now let's split the data into two parts, training and testing.
-training_data <- as.data.frame(normalized[1:430, ])
-testing_data <- as.data.frame(normalized[431:500, ])
+training_data <- as.data.frame(normalized[1:430,])
+testing_data <- as.data.frame(normalized[431:500,])
 
 # Utility function to generate training and testing data based on the t-prior.
 generate_training_testing <-
   function(prior, training_set, testing_set) {
-    # Iteratively create the prior records.
-    for (x in 1:(prior - 1)) {
-      training_set = shift.column(
-        data = training_set,
-        columns = c("Nine", "Ten", "Eleven"),
-        newNames = c(
-          paste("N", as.character(x + 1), sep = ""),
-          paste("T", as.character(x + 1), sep = ""),
-          paste("E", as.character(x + 1), sep = "")
-        ),
-        up = TRUE,
-        len = x
-      )
-      
-      testing_set = shift.column(
-        data = testing_set,
-        columns = c("Nine", "Ten", "Eleven"),
-        newNames = c(
-          paste("N", as.character(x + 1), sep = ""),
-          paste("T", as.character(x + 1), sep = ""),
-          paste("E", as.character(x + 1), sep = "")
-        ),
-        up = TRUE,
-        len = x
-      )
+    # Iteratively create the prior records if the count is more than 1.
+    if (prior > 1) {
+      for (x in 1:(prior - 1)) {
+        training_set = shift.column(
+          data = training_set,
+          columns = c("Nine", "Ten", "Eleven"),
+          newNames = c(
+            paste("N", as.character(x + 1), sep = ""),
+            paste("T", as.character(x + 1), sep = ""),
+            paste("E", as.character(x + 1), sep = "")
+          ),
+          len = x
+        )
+        
+        testing_set = shift.column(
+          data = testing_set,
+          columns = c("Nine", "Ten", "Eleven"),
+          newNames = c(
+            paste("N", as.character(x + 1), sep = ""),
+            paste("T", as.character(x + 1), sep = ""),
+            paste("E", as.character(x + 1), sep = "")
+          ),
+          len = x
+        )
+      }
     }
     
     # Generate the predicted/ output column.
@@ -81,7 +80,6 @@ generate_training_testing <-
       data = training_set,
       columns = "Eleven",
       newNames = "Tomorrow",
-      up = TRUE,
       len = prior
     )
     
@@ -89,7 +87,6 @@ generate_training_testing <-
       data = testing_set,
       columns = "Eleven",
       newNames = "Tomorrow",
-      up = TRUE,
       len = prior
     )
     
@@ -112,57 +109,59 @@ generate_training_testing <-
 # Create a function to train a NN model and test it.
 # https://medium.com/geekculture/introduction-to-neural-network-2f8b8221fbd3
 train_predict_plot_nn <-
-  function(training,
+  function(prior,
+           training,
            testing,
-           hidden_layers = c((ncol(training) + 1) / 2, (ncol(training) + 1) / 4),
-           reps = 10) {
+           hidden_layers = c(5, 3),
+           reps = 100) {
+    # Generate the training and testing data.
+    data_set <- generate_training_testing(prior, training, testing)
+    
     # Prepare data for the neural network.
-    column_names <- names(training)
+    column_names <- names(data_set$training)
     column_formula <-
       as.formula(paste("Tomorrow ~", paste(column_names[!column_names %in% "Tomorrow"], collapse = " + ")))
     
     # Construct the neural network.
     model <- neuralnet(
       column_formula,
-      data = training,
+      data = data_set$training,
       hidden = hidden_layers,
       linear.output = T,
       rep = reps
     )
     
+    prediction <- predict(model, data_set$testing)
+    
     # Plot the predicted results.
-    plot(predict(model, testing),
-         testing$Tomorrow,
-         xlab = "Predicted Values",
-         ylab = "Observed Values")
+    plot(
+      prediction,
+      data_set$testing$Tomorrow,
+      xlab = "Predicted Values",
+      ylab = "Observed Values",
+      main = paste("T-", as.character(prior), sep = ""),
+      abline(a = 0, b = 1)
+    )
+    
+    predicted = prediction * abs(diff(range(data_set$testing$E1))) + min(data_set$testing$E1)
+    actual = data_set$testing$E1 * abs(diff(range(data_set$testing$E1))) + min(data_set$testing$E1)
+    deviation = na.omit((actual - predicted) / actual)
+    accuracy = 1 - abs(mean(deviation))
+    
+    return(accuracy)
   }
 
 # Calculate and show t-1
-# data_set <-
-#   generate_training_testing(1, training_data, testing_data)
-# train_predict_plot_nn(data_set$training,
-#                       data_set$testing)
+train_predict_plot_nn(1, training_data, testing_data, reps = 1)
 
 # Calculate and show t-2
-data_set <-
-  generate_training_testing(2, training_data, testing_data)
-train_predict_plot_nn(data_set$training,
-                      data_set$testing)
+train_predict_plot_nn(2, training_data, testing_data, reps = 1)
 
 # Calculate and show t-3
-data_set <-
-  generate_training_testing(3, training_data, testing_data)
-train_predict_plot_nn(data_set$training,
-                      data_set$testing)
+train_predict_plot_nn(3, training_data, testing_data, reps = 1)
 
 # Calculate and show t-4
-data_set <-
-  generate_training_testing(4, training_data, testing_data)
-train_predict_plot_nn(data_set$training,
-                      data_set$testing)
+train_predict_plot_nn(4, training_data, testing_data, reps = 1)
 
 # Calculate and show t-7
-data_set <-
-  generate_training_testing(7, training_data, testing_data)
-train_predict_plot_nn(data_set$training,
-                      data_set$testing)
+train_predict_plot_nn(7, training_data, testing_data, reps = 1)

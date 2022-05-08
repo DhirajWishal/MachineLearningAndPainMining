@@ -131,11 +131,11 @@ train_predict_plot_nn <-
       rep = reps
     )
     
-    prediction <- predict(model, data_set$testing)
+    result <- predict(model, data_set$testing)
     
     # Plot the predicted results.
     plot(
-      prediction,
+      result,
       data_set$testing$Tomorrow,
       xlab = "Predicted Values",
       ylab = "Observed Values",
@@ -143,25 +143,27 @@ train_predict_plot_nn <-
       abline(a = 0, b = 1)
     )
     
-    predicted = prediction * abs(diff(range(data_set$testing$E1))) + min(data_set$testing$E1)
-    actual = data_set$testing$E1 * abs(diff(range(data_set$testing$E1))) + min(data_set$testing$E1)
-    deviation = na.omit((actual - predicted) / actual)
-    accuracy = 1 - abs(mean(deviation))
+    # Evaluate the model.
+    predicted <- result * abs(diff(range(data_set$testing$E1))) + min(data_set$testing$E1)
+    actual <- data_set$testing * abs(diff(range(data_set$testing$E1))) + min(data_set$testing$E1)
+    actual <- actual[!(actual$Tomorrow == 0), ]
     
-    return(accuracy)
+    return(list("RMSE" = RMSE(predicted, actual$Tomorrow), "MAE" = MAE(predicted, actual$Tomorrow), "MAPE" = MAPE(predicted, actual$Tomorrow)))
   }
 
+layers <- c(3)
+
 # Calculate and show t-1
-train_predict_plot_nn(1, training_data, testing_data, reps = 1)
+train_predict_plot_nn(1, training_data, testing_data, hidden_layers = layers, reps = 10)
 
 # Calculate and show t-2
-train_predict_plot_nn(2, training_data, testing_data, reps = 1)
+train_predict_plot_nn(2, training_data, testing_data, hidden_layers = layers, reps = 10)
 
 # Calculate and show t-3
-train_predict_plot_nn(3, training_data, testing_data, reps = 1)
+train_predict_plot_nn(3, training_data, testing_data, hidden_layers = layers, reps = 10)
 
 # Calculate and show t-4
-train_predict_plot_nn(4, training_data, testing_data, reps = 1)
+train_predict_plot_nn(4, training_data, testing_data, hidden_layers = layers, reps = 10)
 
 # Calculate and show t-7
-train_predict_plot_nn(7, training_data, testing_data, reps = 1)
+train_predict_plot_nn(7, training_data, testing_data, hidden_layers = layers, reps = 1)

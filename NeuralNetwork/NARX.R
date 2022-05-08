@@ -43,12 +43,13 @@ normalized = as.data.frame(sapply(homogeneous_data, function(x)
 summary(normalized)
 
 # Now let's split the data into two parts, training and testing.
-training_data <- as.data.frame(normalized[1:430,])
-testing_data <- as.data.frame(normalized[431:500,])
+training_data <- as.data.frame(normalized[1:430, ])
+testing_data <- as.data.frame(normalized[431:500, ])
 
 # Utility function to generate training and testing data based on the t-prior.
 generate_training_testing <-
   function(prior, training_set, testing_set) {
+    # Iteratively create the prior records.
     for (x in 1:(prior - 1)) {
       training_set = shift.column(
         data = training_set,
@@ -75,6 +76,7 @@ generate_training_testing <-
       )
     }
     
+    # Generate the predicted/ output column.
     training_set = shift.column(
       data = training_set,
       columns = "Eleven",
@@ -92,14 +94,15 @@ generate_training_testing <-
     )
     
     # Rename the first columns to fit the naming scheme.
-    names(training_set)[names(training_set) == "Eleven"] <- "E1"
-    names(training_set)[names(training_set) == "Ten"] <- "T1"
     names(training_set)[names(training_set) == "Nine"] <- "N1"
+    names(training_set)[names(training_set) == "Ten"] <- "T1"
+    names(training_set)[names(training_set) == "Eleven"] <- "E1"
     
-    names(testing_set)[names(testing_set) == "Eleven"] <- "E1"
-    names(testing_set)[names(testing_set) == "Ten"] <- "T1"
     names(testing_set)[names(testing_set) == "Nine"] <- "N1"
+    names(testing_set)[names(testing_set) == "Ten"] <- "T1"
+    names(testing_set)[names(testing_set) == "Eleven"] <- "E1"
     
+    # Strip and remove the first column, and use only the required last columns.
     training_set = as.data.frame(training_set[2:ncol(training_set)])
     testing_set = as.data.frame(testing_set[2:ncol(testing_set)])
     
@@ -109,7 +112,10 @@ generate_training_testing <-
 # Create a function to train a NN model and test it.
 # https://medium.com/geekculture/introduction-to-neural-network-2f8b8221fbd3
 train_predict_plot_nn <-
-  function(training, testing, hidden_layers = c((ncol(training) + 1) / 2, 3)) {
+  function(training,
+           testing,
+           hidden_layers = c((ncol(training) + 1) / 2, (ncol(training) + 1) / 4),
+           reps = 10) {
     # Prepare data for the neural network.
     column_names <- names(training)
     column_formula <-
@@ -120,28 +126,15 @@ train_predict_plot_nn <-
       column_formula,
       data = training,
       hidden = hidden_layers,
-      linear.output = T
+      linear.output = T,
+      rep = reps
     )
     
-    #plot(nn)
+    # Plot the predicted results.
     plot(predict(model, testing),
          testing$Tomorrow,
          xlab = "Predicted Values",
          ylab = "Observed Values")
-    # result <- predict(nn, testing)
-    
-    #Test the resulting output
-    # temp_test <- subset(testing, select = names(testing))
-    # head(temp_test)
-    # nn.results <- compute(nn, temp_test)
-    # results <-
-    #   data.frame(actual = testing$Tomorrow,
-    #              prediction = nn.results$net.result)
-    # 
-    # rounded_results <- sapply(results, round, digits = 0)
-    # rounded_results = data.frame(rounded_results)
-    # attach(rounded_results)
-    # confusionMatrix(as.factor(prediction), as.factor(actual))
   }
 
 # Calculate and show t-1

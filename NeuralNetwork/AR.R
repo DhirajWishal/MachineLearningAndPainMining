@@ -43,12 +43,13 @@ normalized = as.data.frame(sapply(homogeneous_data, function(x)
 summary(normalized)
 
 # Now let's split the data into two parts, training and testing.
-training_data <- as.data.frame(normalized[1:430, ])
-testing_data <- as.data.frame(normalized[431:500, ])
+training_data <- as.data.frame(normalized[1:430,])
+testing_data <- as.data.frame(normalized[431:500,])
 
 # Utility function to generate training and testing data based on the t-prior.
 generate_training_testing <-
   function(prior, training_set, testing_set) {
+    # Iteratively create the prior records.
     for (x in 1:(prior - 1)) {
       training_set = shift.column(
         data = training_set,
@@ -67,6 +68,7 @@ generate_training_testing <-
       )
     }
     
+    # Generate the predicted/ output column.
     training_set = shift.column(
       data = training_set,
       columns = "Eleven",
@@ -87,6 +89,7 @@ generate_training_testing <-
     names(training_set)[names(training_set) == "Eleven"] <- "E1"
     names(testing_set)[names(testing_set) == "Eleven"] <- "E1"
     
+    # Select only the required columns.
     training_set = as.data.frame(training_set[4:ncol(training_set)])
     testing_set = as.data.frame(testing_set[4:ncol(testing_set)])
     
@@ -103,28 +106,18 @@ train_predict_plot_nn <-
       as.formula(paste("Tomorrow ~", paste(column_names[!column_names %in% "Tomorrow"], collapse = " + ")))
     
     # Construct the neural network.
-    nn <- neuralnet(
+    model <- neuralnet(
       column_formula,
       data = training,
       hidden = hidden_layers,
-      linear.output = T
+      linear.output = T,
+      rep = 100
     )
     
-    plot(nn)
-    # result <- predict(nn, testing)
-    
-    #Test the resulting output
-    temp_test <- subset(testing, select = names(testing))
-    head(temp_test)
-    nn.results <- compute(nn, temp_test)
-    results <-
-      data.frame(actual = testing$Tomorrow,
-                 prediction = nn.results$net.result)
-    
-    rounded_results <- sapply(results, round, digits = 0)
-    rounded_results = data.frame(rounded_results)
-    attach(rounded_results)
-    confusionMatrix(as.factor(prediction), as.factor(actual))
+    plot(predict(model, testing),
+         testing$Tomorrow,
+         xlab = "Predicted Values",
+         ylab = "Observed Values")
   }
 
 # Calculate and show t-1
